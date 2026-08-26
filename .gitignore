@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.env
+.idea/
+.vscode/
+TestResults/
+coverage/
+.tools/
+.hermes/artifacts/*.png
+*.user
+*.suo

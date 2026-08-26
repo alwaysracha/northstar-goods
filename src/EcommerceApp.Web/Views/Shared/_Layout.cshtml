@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Northstar Goods — thoughtful objects for everyday living." />
+  <title>@ViewData["Title"] — Northstar Goods</title>
+  <link rel="icon" type="image/svg+xml" href="~/favicon.svg" />
+  <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="announcement">Free ground shipping on orders over $100</div>
+  <header class="site-header">
+    <a class="brand" asp-controller="Home" asp-action="Index" aria-label="Northstar Goods home"><span aria-hidden="true">✦</span> NORTHSTAR</a>
+    <nav aria-label="Primary navigation">
+      <a asp-controller="Catalog" asp-action="Index">Shop all</a>
+      <a asp-controller="Catalog" asp-action="Index" asp-route-sort="newest">New arrivals</a>
+      <a href="#footer">Our story</a>
+    </nav>
+    <form class="header-search" asp-controller="Catalog" asp-action="Index" method="get" role="search">
+      <label class="sr-only" for="site-search">Search products</label><input id="site-search" name="search" placeholder="Search products…" /><button aria-label="Submit search">⌕</button>
+    </form>
+    <div class="header-actions"><a asp-controller="Cart" asp-action="Index">Bag</a>@if(User.Identity?.IsAuthenticated == true){<a asp-controller="Orders" asp-action="Index">Orders</a>@if(User.IsInRole("Administrator")){<a asp-area="Admin" asp-controller="Home" asp-action="Index">Admin</a>}<span>Hello, @User.Identity.Name</span><form asp-area="" asp-controller="Account" asp-action="Logout" method="post"><button class="link-button">Sign out</button></form>}else{<a asp-controller="Account" asp-action="Login">Sign in</a>}</div>
+  </header>
+  <main id="main">@if(TempData["Notice"] is string notice){<div class="flash success" role="status">@notice</div>}@if(TempData["Error"] is string error){<div class="flash error" role="alert">@error</div>}@RenderBody()</main>
+  <footer id="footer"><div><a class="brand" asp-controller="Home">✦ NORTHSTAR</a><p>Objects with purpose, selected for the way you live.</p></div><div><strong>Shop</strong><a asp-controller="Catalog">All products</a><a asp-controller="Catalog" asp-route-inStockOnly="true">In stock</a></div><div><strong>Help</strong><span>hello@northstar.local</span><span>Mon–Fri, 9–5</span></div><small>© @DateTime.UtcNow.Year Northstar Goods. Local demo storefront.</small></footer>
+  <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

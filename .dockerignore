@@ -1,0 +1,8 @@
+.git
+.hermes
+.codex
+.agents
+**/bin
+**/obj
+TestResults
+.env

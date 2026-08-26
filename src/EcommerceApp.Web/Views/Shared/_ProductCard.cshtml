@@ -1,0 +1,5 @@
+@model ProductCard
+<article class="product-card">
+  <a asp-controller="Catalog" asp-action="Detail" asp-route-slug="@Model.Slug" class="product-image"><img src="@Model.ImagePath" alt="@Model.Name" loading="eager" />@if(Model.Featured){<span class="badge">Staff pick</span>}</a>
+  <div class="card-copy"><span class="eyebrow">@Model.Category</span><h3><a asp-controller="Catalog" asp-action="Detail" asp-route-slug="@Model.Slug">@Model.Name</a></h3><div class="price-row"><strong>@Model.Price.ToString("C")</strong><span class="stock @(Model.Stock > 0 ? "" : "out")">@(Model.Stock > 0 ? "In stock" : "Sold out")</span></div></div>
+</article>

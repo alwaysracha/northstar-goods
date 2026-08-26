@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ecommerce}
+      POSTGRES_USER: ${POSTGRES_USER:-ecommerce}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-dev-only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+  web:
+    build:
+      context: .
+      target: runtime
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-ecommerce};Username=${POSTGRES_USER:-ecommerce};Password=${POSTGRES_PASSWORD:-local-dev-only}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-5180}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 40s
+  tests:
+    build:
+      context: .
+      target: test
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles: ["test"]
+  browser:
+    image: ghcr.io/puppeteer/puppeteer:24.16.0
+    working_dir: /workspace
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    environment:
+      HOME: /tmp
+      PUPPETEER_CACHE_DIR: /home/pptruser/.cache/puppeteer
+      BASE_URL: http://web:8080
+      ARTIFACT_DIR: /workspace/.hermes/artifacts
+      NODE_PATH: /home/pptruser/node_modules
+    volumes:
+      - .:/workspace
+    depends_on:
+      web:
+        condition: service_healthy
+    command: ["node", "tests/browser/storefront-smoke.js"]
+    profiles: ["browser"]
+volumes:
+  postgres-data:

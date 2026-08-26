@@ -1,0 +1,5 @@
+@model EcommerceApp.Web.ViewModels.OrderDetailModel
+@{ ViewData["Title"] = $"Order {Model.OrderNumber}"; }
+<section class="page-shell"><a asp-action="Index">← Your orders</a><p class="eyebrow">Order detail</p><h1>@Model.OrderNumber</h1>
+<div class="admin-grid"><section class="panel"><h2>Items</h2>@foreach(var item in Model.Items){<div class="line"><span><strong>@item.ProductName</strong><small>@item.Sku · Qty @item.Quantity</small></span><strong>@((item.UnitPrice*item.Quantity).ToString("C"))</strong></div>}</section>
+<aside class="summary"><div><span>Status</span><strong>@Model.Status</strong></div><div><span>Subtotal</span><strong>@Model.Subtotal.ToString("C")</strong></div><div><span>Discount</span><strong>−@Model.DiscountTotal.ToString("C")</strong></div><div><span>Shipping</span><strong>@Model.ShippingTotal.ToString("C")</strong></div><div class="total"><span>Total</span><strong>@Model.Total.ToString("C")</strong></div><p><strong>Ship to</strong><br/>@Model.RecipientName<br/>@Model.ShippingAddress</p></aside></div></section>
