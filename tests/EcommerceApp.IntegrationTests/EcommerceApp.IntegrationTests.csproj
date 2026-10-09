@@ -5,8 +5,12 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
-    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <PackageReference Include="Testcontainers.MsSql" />
     <ProjectReference Include="../../src/EcommerceApp.Web/EcommerceApp.Web.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The T-SQL deployment scripts are the schema source of truth; tests deploy them into a fresh container. -->
+    <None Include="../../database/**/*.sql" LinkBase="database" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

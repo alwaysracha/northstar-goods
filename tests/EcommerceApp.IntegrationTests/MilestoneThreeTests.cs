@@ -54,7 +54,7 @@ public sealed class MilestoneThreeTests(IntegrationTestFactory factory)
     [Fact]
     public async Task Admin_succeeds_and_mutations_require_antiforgery()
     {
-        using var client = await LoginAsync(DevelopmentDataSeeder.AdminEmail);
+        using var client = await LoginAsync(DemoAccounts.AdminEmail);
         Assert.Contains("Admin dashboard", await client.GetStringAsync("/admin"));
         var response = await client.PostAsync("/admin/categories/create", new FormUrlEncodedContent(new Dictionary<string, string> { ["Name"] = "Unique category", ["Slug"] = "unique-category" }));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -63,7 +63,7 @@ public sealed class MilestoneThreeTests(IntegrationTestFactory factory)
     [Fact]
     public async Task Duplicate_category_slug_is_validation_error_and_referenced_category_delete_is_safe()
     {
-        using var client = await LoginAsync(DevelopmentDataSeeder.AdminEmail);
+        using var client = await LoginAsync(DemoAccounts.AdminEmail);
         var createHtml = await client.GetStringAsync("/admin/categories/create");
         var create = await client.PostAsync("/admin/categories/create", Form(createHtml, new() { ["Name"] = "Duplicate audio", ["Slug"] = "audio", ["Description"] = "Duplicate" }));
         Assert.Equal(HttpStatusCode.OK, create.StatusCode);
@@ -81,7 +81,7 @@ public sealed class MilestoneThreeTests(IntegrationTestFactory factory)
     [Fact]
     public async Task Stale_product_edit_cannot_restore_stock_sold_after_form_was_loaded()
     {
-        using var client = await LoginAsync(DevelopmentDataSeeder.AdminEmail);
+        using var client = await LoginAsync(DemoAccounts.AdminEmail);
         int productId;
         int categoryId;
         string html;
@@ -134,7 +134,7 @@ public sealed class MilestoneThreeTests(IntegrationTestFactory factory)
     [Fact]
     public async Task Invalid_order_status_transition_is_rejected()
     {
-        using var client = await LoginAsync(DevelopmentDataSeeder.AdminEmail);
+        using var client = await LoginAsync(DemoAccounts.AdminEmail);
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var order = await db.Orders.AsNoTracking().FirstAsync(x => x.Status == OrderStatus.Shipped);
@@ -149,7 +149,7 @@ public sealed class MilestoneThreeTests(IntegrationTestFactory factory)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         var html = await client.GetStringAsync("/account/login");
-        var response = await client.PostAsync("/account/login", Form(html, new() { ["Email"] = email, ["Password"] = DevelopmentDataSeeder.DemoPassword }));
+        var response = await client.PostAsync("/account/login", Form(html, new() { ["Email"] = email, ["Password"] = DemoAccounts.DemoPassword }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         return client;
     }
