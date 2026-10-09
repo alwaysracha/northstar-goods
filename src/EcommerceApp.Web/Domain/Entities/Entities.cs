@@ -80,7 +80,11 @@ public sealed class CartItem
 
 public enum DiscountKind { Percentage, FixedAmount }
 public enum OrderStatus { Pending, Processing, Shipped, Delivered, Cancelled }
-public enum PaymentStatus { Pending, SimulatedPaid, Failed }
+public enum PaymentStatus { Pending, SimulatedPaid, Failed, Refunded, PartiallyRefunded }
+public enum PaymentAttemptStatus : byte { Captured = 1, Declined = 2, Error = 3, Pending = 4 }
+
+// Ids of ref.StatusChangeReasons rows the application writes.
+public static class StatusChangeReasons { public const short OrderPlaced = 1, PaymentCaptured = 2, AdminUpdate = 10; }
 
 public sealed class DiscountCode
 {
@@ -105,7 +109,6 @@ public sealed class DiscountRedemption
     public DiscountCode DiscountCode { get; set; } = null!;
     public int OrderId { get; set; }
     public Order Order { get; set; } = null!;
-    public string? UserId { get; set; }
     public DateTimeOffset RedeemedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
@@ -119,7 +122,13 @@ public sealed class Order
     public ApplicationUser? Customer { get; set; }
     public required string ContactEmail { get; set; }
     public required string RecipientName { get; set; }
-    public required string ShippingAddress { get; set; }
+    public required string ShipLine1 { get; set; }
+    public string? ShipLine2 { get; set; }
+    public required string ShipCity { get; set; }
+    public required string ShipRegion { get; set; }
+    public required string ShipPostalCode { get; set; }
+    public required string ShipCountryCode { get; set; }
+    public string ShippingAddress => string.Join("\n", new[] { ShipLine1, ShipLine2, $"{ShipCity}, {ShipRegion} {ShipPostalCode}", ShipCountryCode }.Where(x => !string.IsNullOrWhiteSpace(x)));
     public decimal Subtotal { get; set; }
     public decimal DiscountTotal { get; set; }
     public decimal ShippingTotal { get; set; }
@@ -129,6 +138,8 @@ public sealed class Order
     public PaymentStatus PaymentStatus { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public ICollection<OrderItem> Items { get; set; } = [];
+    public ICollection<OrderStatusHistory> StatusHistory { get; set; } = [];
+    public ICollection<PaymentAttempt> PaymentAttempts { get; set; } = [];
 }
 
 public sealed class OrderItem
@@ -142,4 +153,32 @@ public sealed class OrderItem
     public required string ProductName { get; set; }
     public decimal UnitPrice { get; set; }
     public int Quantity { get; set; }
+}
+
+public sealed class OrderStatusHistory
+{
+    public long Id { get; set; }
+    public int OrderId { get; set; }
+    public Order Order { get; set; } = null!;
+    public OrderStatus? FromStatus { get; set; }
+    public OrderStatus ToStatus { get; set; }
+    public short? ReasonId { get; set; }
+    public string? ChangedByUserId { get; set; }
+    public DateTimeOffset ChangedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string? Note { get; set; }
+}
+
+public sealed class PaymentAttempt
+{
+    public long Id { get; set; }
+    public int OrderId { get; set; }
+    public Order Order { get; set; } = null!;
+    public byte AttemptNumber { get; set; }
+    public int? PaymentMethodId { get; set; }
+    public decimal Amount { get; set; }
+    public string CurrencyCode { get; set; } = "USD";
+    public PaymentAttemptStatus Status { get; set; }
+    public short? DeclineReasonId { get; set; }
+    public required string GatewayReference { get; set; }
+    public DateTimeOffset AttemptedAt { get; set; } = DateTimeOffset.UtcNow;
 }

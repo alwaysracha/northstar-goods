@@ -12,9 +12,9 @@ var connection = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connection))
 {
     if (!builder.Environment.IsDevelopment()) throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required outside Development.");
-    connection = "Host=localhost;Port=5432;Database=ecommerce;Username=ecommerce;Password=local-dev-only";
+    connection = "Server=localhost,1433;Database=NorthstarGoods;User Id=northstar_app;Password=LocalDev!App2026;Encrypt=True;TrustServerCertificate=True";
 }
-builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connection));
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connection));
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequiredLength = 10;
@@ -50,11 +50,7 @@ app.MapAreaControllerRoute("admin", "Admin", "admin/{controller=Home}/{action=In
 app.MapControllerRoute("product", "products/{slug}", new { controller = "Catalog", action = "Detail" });
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 
-if (app.Environment.IsDevelopment())
-{
-    using var scope = app.Services.CreateScope();
-    await DevelopmentDataSeeder.SeedAsync(scope.ServiceProvider);
-}
+// The schema and development data are deployed by database/deploy.sh (T-SQL), not by the application.
 app.Run();
 
 public partial class Program;

@@ -26,6 +26,27 @@ public sealed class CheckoutTransactionTests(IntegrationTestFactory factory)
         Assert.True(first.Succeeded); Assert.True(second.Succeeded);
         Assert.Equal(first.ConfirmationToken, second.ConfirmationToken);
         Assert.Equal(1, await db.Orders.CountAsync(x => x.ConfirmationToken == first.ConfirmationToken));
+        var order = await db.Orders.AsNoTracking().Include(x => x.StatusHistory).Include(x => x.PaymentAttempts).SingleAsync(x => x.ConfirmationToken == first.ConfirmationToken);
+        Assert.Equal([OrderStatus.Pending, OrderStatus.Processing], order.StatusHistory.OrderBy(x => x.ChangedAt).Select(x => x.ToStatus));
+        var attempt = Assert.Single(order.PaymentAttempts);
+        Assert.Equal(PaymentAttemptStatus.Captured, attempt.Status);
+        Assert.Equal(order.Total, attempt.Amount);
+    }
+
+    [Fact]
+    public async Task Unsupported_shipping_country_is_rejected_before_any_stock_is_taken()
+    {
+        var suffix = Guid.NewGuid().ToString("N");
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var product = await AddProduct(db, "country-" + suffix, 2);
+        var cart = new Cart { SessionKey = "country-" + suffix, Items = [new CartItem { ProductId = product.Id, Quantity = 1 }] };
+        db.Carts.Add(cart); await db.SaveChangesAsync();
+        var input = Input("country-" + suffix); input.CountryCode = "ZZ";
+        var result = await scope.ServiceProvider.GetRequiredService<ICheckoutService>().PlaceAsync(cart.Id, null, input);
+        Assert.False(result.Succeeded);
+        Assert.Contains("ZZ", result.Message);
+        Assert.Equal(2, await db.Products.AsNoTracking().Where(x => x.Id == product.Id).Select(x => x.StockQuantity).SingleAsync());
     }
 
     [Fact]
@@ -42,9 +63,16 @@ public sealed class CheckoutTransactionTests(IntegrationTestFactory factory)
             ConfirmationToken = string.Concat("secret-", suffix),
             ContactEmail = "foreign-" + suffix + "@example.local",
             RecipientName = "Maya",
-            ShippingAddress = "Private address",
+            ShipLine1 = "Private address",
+            ShipCity = "Austin",
+            ShipRegion = "TX",
+            ShipPostalCode = "78701",
+            ShipCountryCode = "US",
+            Subtotal = 25,
+            Total = 25,
             Status = OrderStatus.Processing,
-            PaymentStatus = PaymentStatus.SimulatedPaid
+            PaymentStatus = PaymentStatus.SimulatedPaid,
+            PaymentAttempts = [new() { AttemptNumber = 1, Amount = 25, Status = PaymentAttemptStatus.Captured, GatewayReference = "sim_foreign_" + suffix }]
         });
         var product = await AddProduct(db, "foreign-" + suffix, 2);
         var cart = new Cart { SessionKey = "attacker-" + suffix, Items = [new CartItem { ProductId = product.Id, Quantity = 1 }] };
@@ -88,7 +116,7 @@ public sealed class CheckoutTransactionTests(IntegrationTestFactory factory)
     private static async Task<Product> AddProduct(ApplicationDbContext db, string suffix, int stock)
     {
         var category = new Category { Name = "Checkout " + suffix, Slug = "checkout-" + suffix };
-        var product = new Product { Category = category, Name = "Final unit", Slug = "final-" + suffix, Sku = "TEST-" + suffix, Price = 25, StockQuantity = stock };
+        var product = new Product { Category = category, Name = "Final unit", Slug = "final-" + suffix, Sku = $"TEST-{Guid.NewGuid():N}", Price = 25, StockQuantity = stock };
         db.Add(product); await db.SaveChangesAsync(); return product;
     }
 }

@@ -1,8 +1,11 @@
+using System.Data;
+using System.Security.Claims;
 using EcommerceApp.Web.Areas.Admin.ViewModels;
 using EcommerceApp.Web.Data;
 using EcommerceApp.Web.Domain.Entities;
 using EcommerceApp.Web.Services.Orders;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace EcommerceApp.Web.Areas.Admin.Controllers;
@@ -19,13 +22,16 @@ public sealed class OrdersController(ApplicationDbContext db) : AdminControllerB
             TempData["Error"] = $"The transition from {model.OriginalStatus} to {model.Status} is not allowed.";
             return RedirectToAction(nameof(Detail), new { id });
         }
-        var changed = await db.Orders.Where(x => x.Id == id && x.Status == model.OriginalStatus)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, model.Status));
-        if (changed == 0)
+        // The procedure re-checks the transition, applies it only if the order is still in OriginalStatus,
+        // and writes the audit row in the same transaction.
+        var result = new SqlParameter("@Result", SqlDbType.Int) { Direction = ParameterDirection.Output };
+        var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        await db.Database.ExecuteSqlAsync($"EXEC sales.usp_ChangeOrderStatus @OrderId = {id}, @ExpectedStatusId = {(byte)model.OriginalStatus}, @NewStatusId = {(byte)model.Status}, @ChangedByUserId = {adminId}, @Result = {result} OUTPUT");
+        switch ((int)result.Value)
         {
-            if (!await db.Orders.AnyAsync(x => x.Id == id)) return NotFound();
-            TempData["Error"] = "This order changed after you opened it. Review its current status and try again.";
-            return Conflict();
+            case 1: return NotFound();
+            case 2: TempData["Error"] = "This order changed after you opened it. Review its current status and try again."; return Conflict();
+            case 3: TempData["Error"] = $"The transition from {model.OriginalStatus} to {model.Status} is not allowed."; return RedirectToAction(nameof(Detail), new { id });
         }
         TempData["Notice"] = "Order status updated.";
         return RedirectToAction(nameof(Detail), new { id });

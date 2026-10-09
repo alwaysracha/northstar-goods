@@ -1,51 +1,50 @@
-using EcommerceApp.Web.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
+using Microsoft.Data.SqlClient;
+using Testcontainers.MsSql;
 
 namespace EcommerceApp.IntegrationTests;
 
 [CollectionDefinition(Name)]
 public sealed class IntegrationTestCollection : ICollectionFixture<IntegrationTestFactory>
 {
-    public const string Name = "PostgreSQL integration tests";
+    public const string Name = "SQL Server integration tests";
 }
 
 public sealed class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("ecommerce_tests")
-        .WithUsername("ecommerce_tests")
-        .WithPassword("testcontainers-only")
-        .Build();
+    public const string DatabaseName = "NorthstarGoods";
+    private const string AppLogin = "northstar_app";
+    private static readonly string AppPassword = $"Tc!{Guid.NewGuid():N}"; // throwaway container, new password per run
+
+    private readonly MsSqlContainer _sqlServer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2025-latest").Build();
+
+    // sa on the application database: for assertions about schema and seed data.
+    public string AdminConnectionString => new SqlConnectionStringBuilder(_sqlServer.GetConnectionString()) { InitialCatalog = DatabaseName }.ConnectionString;
+
+    // The least-privilege login the application itself uses.
+    public string AppConnectionString => new SqlConnectionStringBuilder(_sqlServer.GetConnectionString()) { InitialCatalog = DatabaseName, UserID = AppLogin, Password = AppPassword }.ConnectionString;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
-        builder.ConfigureAppConfiguration((_, configuration) =>
-        {
-            configuration.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString()
-            });
-        });
+        // UseSetting is applied when Program.cs creates its builder, so it wins over appsettings.Development.json
+        // for values Program.cs reads before Build() (ConfigureAppConfiguration arrives too late for those).
+        builder.UseSetting("ConnectionStrings:DefaultConnection", AppConnectionString);
     }
 
     public async ValueTask InitializeAsync()
     {
-        await _postgres.StartAsync();
-
-        // Force application startup. Development startup migrates and idempotently seeds.
+        await _sqlServer.StartAsync();
+        // Same scripts, same order as database/deploy.sh, including the development seed.
+        await SqlScriptDeployer.DeployAsync(_sqlServer.GetConnectionString(),
+            new Dictionary<string, string> { ["DatabaseName"] = DatabaseName, ["AppLoginName"] = AppLogin, ["AppLoginPassword"] = AppPassword }, seed: true);
         _ = Services;
-        await using var scope = Services.CreateAsyncScope();
-        await DevelopmentDataSeeder.SeedAsync(scope.ServiceProvider);
     }
 
     public new async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
-        await _postgres.DisposeAsync();
+        await _sqlServer.DisposeAsync();
     }
 }
