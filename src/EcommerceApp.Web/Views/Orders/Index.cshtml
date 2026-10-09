@@ -1,5 +1,5 @@
 @model IReadOnlyList<EcommerceApp.Web.ViewModels.OrderListItemModel>
 @{ ViewData["Title"] = "Your orders"; }
 <section class="page-shell"><p class="eyebrow">Account</p><h1>Your orders</h1>
-@if(Model.Count == 0){<div class="empty"><h2>No orders yet</h2><p>Your completed purchases will appear here.</p><a class="button" asp-controller="Catalog">Start shopping</a></div>}
+@if(Model.Count == 0){<div class="empty"><h2>No orders yet</h2><p>Your completed purchases will appear here.</p><a class="button" asp-controller="Catalog" asp-action="Index">Start shopping</a></div>}
 else{<div class="order-list">@foreach(var order in Model){<a class="order-card" asp-action="Detail" asp-route-orderNumber="@order.OrderNumber"><div><strong>@order.OrderNumber</strong><span>@order.CreatedAt.ToString("MMM d, yyyy") · @order.ItemCount item(s)</span></div><div><span class="status">@order.Status</span><strong>@order.Total.ToString("C")</strong></div></a>}</div>}</section>

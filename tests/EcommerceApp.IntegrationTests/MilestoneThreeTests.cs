@@ -44,7 +44,10 @@ public sealed class MilestoneThreeTests(IntegrationTestFactory factory)
         using var anonymous = factory.CreateClient();
         Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync("/checkout/confirmation?token=not-a-token")).StatusCode);
         var confirmation = await anonymous.GetAsync($"/checkout/confirmation?token={own.ConfirmationToken}");
-        Assert.Contains(own.OrderNumber, await confirmation.Content.ReadAsStringAsync());
+        var confirmationHtml = await confirmation.Content.ReadAsStringAsync();
+        Assert.Contains(own.OrderNumber, confirmationHtml);
+        Assert.Contains("href=\"/catalog\"", confirmationHtml);
+        Assert.Contains("href=\"/#our-story\"", confirmationHtml);
         Assert.Contains("no-store", confirmation.Headers.CacheControl?.ToString());
     }
 
